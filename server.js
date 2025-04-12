@@ -134,7 +134,6 @@ app.get('/recommend-fertilizer', async (req, res) => {
 --P ${latestData.phosphorus} \
 --K ${latestData.potassium}"`;
 
-        console.log('Conda Args: ', condaArgs);
         const pythonProcess = spawn(command, { shell: true });
 
         pythonProcess.stdout.on('data', (chunk) => {
