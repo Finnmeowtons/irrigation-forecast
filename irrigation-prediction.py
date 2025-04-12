@@ -11,7 +11,7 @@ import warnings
 # Suppress SettingWithCopyWarning, use with caution
 warnings.filterwarnings('ignore', category=pd.errors.SettingWithCopyWarning)
 
-def forecast_soil_moisture_threshold(csv_file_path, start_timestamp_iso, threshold=50.0, max_hours=72):
+def forecast_soil_moisture_threshold(csv_file_path, start_timestamp_iso, threshold=40.0, max_hours=72):
     """
     Loads data, trains a linear regression model, and forecasts from a specific
     start time until soil moisture drops below a given threshold.
