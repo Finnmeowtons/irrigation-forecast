@@ -25,7 +25,7 @@ app.get('/predict_irrigation_time', async (req, res) => {
             return res.status(400).json({ error: 'No timestamp found in database.' });
         }
 
-        
+
         const latestTimestampISO = toLocalISOString(new Date(rows[0].latest));
 
 
@@ -49,16 +49,16 @@ app.get('/predict_irrigation_time', async (req, res) => {
         exportRows.forEach(row => {
             // Convert timestamp to ISO string if it exists
             if (row.timestamp && row.timestamp instanceof Date) {
-              row.timestamp = row.timestamp.toISOString();
+                row.timestamp = row.timestamp.toISOString();
             }
             csvData.push(headers.map(h => row[h]).join(','));
-          });
-          
+        });
+
         fs.writeFileSync(csvPath, csvData.join('\n'));
         console.log('Exported data to CSV:', csvPath);
 
         // === 3. Call Python Script in Conda Env ===
-        const condaCommand = `source venv/bin/activate && python3 irrigation-prediction.py ${latestTimestampISO}`;
+        const condaCommand = `bash -c "source venv/bin/activate && python3 irrigation-prediction.py ${latestTimestampISO}"`;
         // const condaCommand = `conda run -n future_water_prediction python irrigation-prediction.py ${latestTimestampISO}`;
         const pythonProcess = spawn(condaCommand, {
             shell: true, // Needed for conda run to work
@@ -124,20 +124,18 @@ app.get('/recommend-fertilizer', async (req, res) => {
         let data = '';
         let error = '';
 
-        const condaArgs = [
-            'venv/bin/activate', '&&', 'python3', 'recommend_api.py',
-            '--temperature', latestData.temperature.toString(),
-            '--humidity', latestData.humidity.toString(),
-            '--moisture', latestData.soil_moisture_percentage.toString(),
-            '--soil_type', "Loamy",
-            '--crop_type', "Maize",
-            '--N', latestData.nitrogen.toString(),
-            '--P', latestData.phosphorus.toString(),
-            '--K', latestData.potassium.toString()
-        ];
+        const command = `bash -c "source venv/bin/activate && python3 recommend_api.py \
+--temperature ${latestData.temperature} \
+--humidity ${latestData.humidity} \
+--moisture ${latestData.soil_moisture_percentage} \
+--soil_type Loamy \
+--crop_type Maize \
+--N ${latestData.nitrogen} \
+--P ${latestData.phosphorus} \
+--K ${latestData.potassium}"`;
 
         console.log('Conda Args: ', condaArgs);
-        const pythonProcess = spawn('source', condaArgs, { shell: true });
+        const pythonProcess = spawn(command, { shell: true });
 
         pythonProcess.stdout.on('data', (chunk) => {
             data += chunk.toString();
@@ -173,7 +171,7 @@ function toLocalISOString(date) {
     const tzOffset = date.getTimezoneOffset() * 60000;
     const localDate = new Date(date.getTime() - tzOffset);
     return localDate.toISOString().slice(0, 19);
-  }
+}
 
 app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
