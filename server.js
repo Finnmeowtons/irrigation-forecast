@@ -104,6 +104,70 @@ app.get('/predict_irrigation_time', async (req, res) => {
     }
 });
 
+app.get('/recommend-fertilizer', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT * FROM data
+            WHERE nitrogen IS NOT NULL
+              AND phosphorus IS NOT NULL
+              AND potassium IS NOT NULL
+            ORDER BY timestamp DESC
+            LIMIT 1
+        `);
+
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ error: 'No valid NPK data found in the database.' });
+        }
+
+        const latestData = rows[0];
+        let data = '';
+        let error = '';
+
+        const condaArgs = [
+            'run', '-n', 'future_water_prediction', 'python', 'recommend_api.py',
+            '--temperature', latestData.temperature.toString(),
+            '--humidity', latestData.humidity.toString(),
+            '--moisture', latestData.soil_moisture_percentage.toString(),
+            '--soil_type', "Loamy",
+            '--crop_type', "Maize",
+            '--N', latestData.nitrogen.toString(),
+            '--P', latestData.phosphorus.toString(),
+            '--K', latestData.potassium.toString()
+        ];
+
+        console.log('Conda Args: ', condaArgs);
+        const pythonProcess = spawn('conda', condaArgs, { shell: true });
+
+        pythonProcess.stdout.on('data', (chunk) => {
+            data += chunk.toString();
+            console.log(data);
+        });
+
+        pythonProcess.stderr.on('data', (chunk) => {
+            error += chunk.toString();
+            console.error(`Python stderr: ${chunk}`);
+        });
+
+        pythonProcess.on('close', (code) => {
+            console.log("Python process closed with code", code);
+            if (code !== 0) {
+                return res.status(500).json({ error: error || 'Prediction failed' });
+            }
+            try {
+                const result = JSON.parse(data);
+                res.json(result);
+            } catch (err) {
+                res.status(500).json({ error: 'Invalid response from Python script' });
+            }
+        });
+    } catch (err) {
+        console.error('Error during fertilizer recommendation:', err);
+        res.status(500).json({ error: 'Server error', details: err.message });
+    }
+});
+
+
+
 function toLocalISOString(date) {
     const tzOffset = date.getTimezoneOffset() * 60000;
     const localDate = new Date(date.getTime() - tzOffset);
@@ -112,4 +176,4 @@ function toLocalISOString(date) {
 
 app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
-});
+}); 
