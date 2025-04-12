@@ -58,7 +58,8 @@ app.get('/predict_irrigation_time', async (req, res) => {
         console.log('Exported data to CSV:', csvPath);
 
         // === 3. Call Python Script in Conda Env ===
-        const condaCommand = `conda run -n future_water_prediction python irrigation-prediction.py ${latestTimestampISO}`;
+        const condaCommand = `source venv/bin/activate && python3 irrigation-prediction.py ${latestTimestampISO}`;
+        // const condaCommand = `conda run -n future_water_prediction python irrigation-prediction.py ${latestTimestampISO}`;
         const pythonProcess = spawn(condaCommand, {
             shell: true, // Needed for conda run to work
         });
@@ -124,7 +125,7 @@ app.get('/recommend-fertilizer', async (req, res) => {
         let error = '';
 
         const condaArgs = [
-            'run', '-n', 'future_water_prediction', 'python', 'recommend_api.py',
+            'venv/bin/activate', '&&', 'python3', 'recommend_api.py',
             '--temperature', latestData.temperature.toString(),
             '--humidity', latestData.humidity.toString(),
             '--moisture', latestData.soil_moisture_percentage.toString(),
@@ -136,7 +137,7 @@ app.get('/recommend-fertilizer', async (req, res) => {
         ];
 
         console.log('Conda Args: ', condaArgs);
-        const pythonProcess = spawn('conda', condaArgs, { shell: true });
+        const pythonProcess = spawn('source', condaArgs, { shell: true });
 
         pythonProcess.stdout.on('data', (chunk) => {
             data += chunk.toString();
